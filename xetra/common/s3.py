@@ -47,7 +47,7 @@ class S3BucketConnector():
         files = [obj.key for obj in self._bucket.objects.filter(Prefix = prefix)]
         return files
 
-    def read_csv_to_df(self, key: str, decoding: str = 'utf-8', delimiter: str =','):
+    def read_csv_to_df(self, key: str, decoding: str = 'utf-8', sep: str =','):
         """
         :param key: file name/key for converting file to csv
         :param decoding: decoding method of file
@@ -57,7 +57,7 @@ class S3BucketConnector():
             df: returns converted dataframe of the 
         
         """
-        self._logger("Reading file %s%s%s", self.endpoint_url, self._bucket.name, key)
+        self._logger("Reading file %s/%s/%s", self.endpoint_url, self._bucket.name, key)
         csv_obj = self._bucket.Object(key = key).get().get('Body').read().decode(decoding)
         data = StringIO(csv_obj)
         df = pd.read_csv(data, delimiter=sep)
@@ -77,12 +77,16 @@ class S3BucketConnector():
             out_buffer = BytesIO()
             df.to_parquet(out_buffer, index = False)
             # write to bucket you created in AWS)
-            return self._bucket.put_object(Body = out_buffer.getvalue(), Key = key)
-            
-        
+            return self._put_object(out_buffer, key)
         if file_format == S3FileTypes.CSV.value:
             out_buffer = StringIO()
             df.to_csv(out_buffer, index = False)
-            return self._bucket.put_object(Body = out_buffer.getvalue(), Key = key)
+            return self._put_object(out_buffer, key)
+        self._logger.info("File type %s is not supported to be written to s3", file_format)
+        
+    def _put_object(self, out_buffer: BytesIO or StringIO, key: str):
+        self._logger.info("Writing file to %s/%s/%s", self.endpoint_url, self._bucket.name, key)
+        self._bucket.put_object(Boyd = out_buffer.getvalue(), Key = key)
+        return True
             
     
